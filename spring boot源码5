@@ -1,0 +1,39 @@
+
+// 1、准备工作，记录下容器的启动时间，标记为已启动状态，处理配置文件的占位符。
+protected void prepareRefresh() {
+   // 记录启动时间，
+   // 将 active 属性设置为 true，closed 属性设置为 false，它们都是 AtomicBoolean 类型
+   this.startupDate = System.currentTimeMillis();
+   this.closed.set(false);
+   this.active.set(true);
+
+   if (logger.isInfoEnabled()) {
+      logger.info("Refreshing " + this);
+   }
+
+   // Initialize any placeholder property sources in the context environment
+   initPropertySources();
+
+   // 校验 xml 配置文件
+   getEnvironment().validateRequiredProperties();
+
+   this.earlyApplicationEvents = new LinkedHashSet<ApplicationEvent>();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,45 @@
+EL 表达式：所有的EL都是以 ${ 为起始，以 } 为结尾的。、
+
+隐含对象：
+1.与范围有关的隐含对象：
+RequestScope : 取得Request  范围的属性名称所对应的值。
+sessionScope : 取得Session范围的属性名称所对应的值。
+2.与输入有关的隐含对象：
+param ： 如同 ServletRequest.getParameter(String name). 回传String 类型的值。
+paramValues : 获取一组请求参数。
+
+3.
+pageContext ： 来取得其他有关用户要求或页面的详细信息。
+${pageContext.request.contextPath} ：服务的web application 的名称。
+${pageContext.request.queryString} : 取得请求的参数字符串。
+${pageContext.request.requestURL} : 取得请求的URL，但不包括请求之参数字符串。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

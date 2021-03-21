@@ -1,0 +1,45 @@
+
+1.Servlet是和平台无关的服务器端组件，它运行在Servlet容器中。Servlet容器负责Servlet和客户的通信以及调用Servlet的方法，Servlet和
+客户的通信采用“请求/相应”的模式。
+Servlet可完成如下功能：
+	-创建并返回基于客户请求的动态HTML页面。
+	-创建可嵌入到现有HTML页面中的部分HTML页面（HTML片段）。
+	-与其它服务器资源（如数据库或基于java的应用程序）进行通信。
+
+2.Servlet的HelloWord
+1.)创建一个Servlet接口的实现类
+   public class HelloServlet implements Servlet
+2.)在web.xml 文件中配置和映射这个Servlet
+
+	配置和映射Servlet
+<servlet>
+	servlet注册的名字
+    <servlet-name>hello</servlet-name>
+	Servlet的全类名：根名+类名
+    <servlet-class>com.atguigu.javaweb.HelloServlet</servlet-class>
+</servlet>
+<servlet-mapping>
+	需要和某一个Servlet节点的色Servlet-name子节点的文本节点一致
+    <servlet-name>hello</servlet-name>
+	映射具体的访问路径：/ 代表当前web 应用的跟目录
+    <url-pattern>/hello</url-pattern>
+</servlet-mapping>
+
+3.Servlet容器：运行Servlet,jsp,Filter等的软件环境。
+1.）可以创建Servlet，并调用Servlet的相关生命周期的方法。
+
+4.Servlet生命周期的方法：
+1.）构造器:只被调用一次，只有第一次请求Servlet时，创建Servlet的事例，调用构造器，这说明serlvet的单实例的
+2.）init方法：只被调用一次，在创建实例后立即被调用，用于初始化当前Servlet
+3.）service：被多次调用，每次请求都会被调用service方法，实际用于相应
+4.)destroy：只被调用一次，在当前Servlet所在的web应用被卸载前调用。用于释放当前Servlet所占用的资源
+
+5.load-on-startup 参数：
+1）. 配置在Servlet节点中：
+load-on-startup  2   可以指定Servlet被创建的时机。
+可以指定serlvet被创建的时机。若为负数，则在第一次请求时被创建，若为0或正数，则在当前web应用被serlvet容器加载时创建实例，且数组越小越早被创建。
+
+
+
+
+

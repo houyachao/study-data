@@ -1,0 +1,100 @@
+会话和会话状态： WEB 应用中的会话是指一个客户端浏览器与WEB服务器之间连续发生的一系列请求和响应过程。
+
+WEB应用的会话状态是指WEB服务器与浏览器在会话过程中产生的状态信息，借助会话状态，web服务器能够把属于同一会话中的一系列的请求和响应过程关联起来。
+
+属于同一会话中的请求消息都附带同样的标识号，而属于不同会话的请求消息总是附带不同的标识号，这个标识号就称之为会话ID （SessionID）。
+在Servlet 规范中，常用以下两种机制完成会话跟踪：
+	-Cookie
+	-Session
+
+cookie机制采用的是在客户端保持HTTP状态信息的方案。
+cookie是在浏览器访问WEB服务器的某个资源时，由WEB服务器在HTTP响应消息头中附带传送给浏览器的一个小文本文件。
+一旦web浏览器保存了某个Cookie，那么他在以后每次访问该WEB服务器时，都会在HTTP请求头中将这个Cookie回传给WEB服务器。
+
+默认情况下它是一个会话级别的cookie：存储在浏览器的内存中，用户推出浏览器之后被删除。如果希望浏览器将该cookie存储在磁盘上，则需要使用maxAge，并给出一个以秒为单位的时间。 
+
+设置Cookie的作用范围：
+cookie.setPath(request.getContexPath());
+Cookie 的作用范围：可以作用当前目录和当前目录的子目录，但不能作用当前目录的上一级目录。
+可以通过setPath 方法来设置Cookie的作用范围，其中/代表站点的根目录。
+
+1.创建一个Cookie对象
+Cookie cookie=new Cookie("name",value);
+2. 调用response 的第一个方法把Cookie传给客户端
+response.addCookie(cookie);
+3.获取Cookie
+//1.获取Cookie
+		 Cookie[] cookies=request.getCookies();
+		if(cookies!=null&&cookies.length>0){
+			for(Cookie cookie:cookies){
+				//获取cookie的name和Vaulue
+				out.print(cookie.getName()+":"+cookie.getValue());
+				out.print("<br>");
+			}
+
+
+
+//setMaxAge: 设置Cookie的最大有效时间，以秒为单位，若为0，表示立即删除该Cookie
+			//若为负数，表示不存储Cookie，若为正数，表示该Cookie 的存储时间，单位：秒。
+			cookie.setMaxAge(30);
+
+
+Session机制采用的是在服务器端保持HTTP状态的方案。
+
+HttpSession的生命周期：
+1.什么时候创建HttpSession对象
+1.）是否浏览器访问服务器端的任何一个JSP或Servlet，服务器都会立即创建一个HttpSession对象呢？ 不一定。若当前的JSP（或Session）是客户端访问的当前web应用的第一个资源，且JSP的page指定的Session属性值为false，则服务器就不会为JSP创建一个HttpSession对象；若当前JSP不是客户端访问的当前WEB应用的第一个资源，且其他页面已经创建一个HttpSession对象，则当前JSP页面会返回一个会话的HttpSession对象，而不会创建一个新的HttpSession对象。而会把和当前会话关联的那个HttpSession对象给当前的JSP页面。
+2.）page 指令的 session="false"到底表示什么意思？ 当前JSP页面禁用session隐含变量！但可以使用其他的显示的HttpSession对象。
+3.）对于Servlet而言：若Servlet是客户端访问的第一个WEB应用的资源，则只有调用了request.getSession()或request.getSession(true)才会创建HttpSession对象。
+
+在Servlet中如何获取HttpSession对象？
+ > request.getSession(boolean create)
+ >request.getSession()：
+create为false， 若没有和当前JSP页面关联的HttpSession对象，则返回 NULL ；若有，则返回true...
+create为true ,一定返回一个HttpSession对象。若没有和当前JSP页面关联的HttpSession对象，则服务器创建一个新的HttpSession对象返回，若有，直接返回关联的。
+
+4.）什么时候销毁HttpSession对象：
+①直接调用HttpSession 的invalidate()方法：该方法使HttpSession失效。
+②服务器卸载了当前WEB应用。
+③超出HttpSession的过期时间。
+   > 设置HttpSession 的过期时间： session.setMaxInactiveInterval(5);单位为秒。
+  > 在web.xml 文本中设置HttpSession的过期时间。
+	<session-config>
+	  <session-timeout>30</session-timeout>
+	</seesion-config>   
+④并不是关闭了浏览器就销毁了HttpSession,关闭浏览器只会使存储在客户端浏览器内存中的session cookie失效，不会使服务器端的session对象失效。
+
+
+URL重写实现Session跟踪
+它允许不支持Cookie的浏览器也可以与WEB服务器保持连续的会话。这种补充机制要求在相应消息的实体内容中必须包含下一次请求的超链接，并将会话标识号作为超链接的URl地址的一个特殊参数。
+将会话标识号以参数形式附加在超链接的URL地址后面的技术称为URL重写。
+encodeURL 方法
+encodeRedirctURL方法
+<a href="<%= response.encodeURL("login.jsp")%>"></a>
+
+
+HttpSession 的相关的API：
+1.）获取Session对象：request.getSession()、request.getSession(boolean create)
+2.)属性相关的：setAttribute、getAttribute、removeAttribute
+3.)使HttpSession失效的：invalidate()方法
+
+
+
+1.绝对路径的问题：
+1.）开发时建议编写“绝对路径”：写绝对路径肯定没有问题，但写相对路径可能会出现问题。
+2.）在javaWEB 中什么叫“绝对路径”：相对于当前WEB应用的跟路径的路径。
+
+http://localhost:8989/contextPath(当前WEB应用的上下文路径)/a.jsp
+3.)JavaWEB开发中的 / 到底代表什么？
+①。当前WEB应用的根路径：//localhost:8989/contextPath :若/需交由Servlet容器来处理。
+   >请求转发时：request.getRequestDispatcher("/path/b.jsp").forword(re,rs);
+   >web.xml文件中映射Servlet访问路径：
+②。WEB站点的根路径：http://localhost:8989/ ：若/ 交由浏览器来处理。
+  >超链接：<a href="/TestServlet"/>
+  >表达中的action:<form action="/login.jsp">
+  >做请求重定向时候：response.sendRedirect("/a.jsp")
+
+
+3.如何编写：若 / 代表的是站点的根目录，在其前面加上 contextPath就可以了。
+<a href=" <%= request.getContextPath()>/TestServlet ">To B</a>
+

@@ -1,0 +1,105 @@
+属性配置方式：
+
+1、Devtools 全局配置。
+2、测试环境 @TestPropertySource 注解
+3、测试环境properties 属性。
+4、命令行参数
+5、SPRING_APPLICATION_JSON 属性。
+6、ServletConfig 初始化参数。
+7、ServletContext 初始化参数。
+8、JNDI 属性。
+9、JAVA 系统属性。
+10、操作系统环境变量。
+11、RandomValuePropertySource 随机值属性。
+12、jar包外的application-{profile}.properties
+13、jar包内的application-{profile}.properties
+14、jar包外的application.properties
+15、jar包内的application.properties
+16、@PropertySource 绑定配置
+17、默认属性
+
+
+--------------
+Aware  作用：
+	指示bean有资格被特定框架对象的Spring容器，通过回调样式的方法。
+	实际的方法签名由各个子接口确定，但应该通常只包含一个接受单个参数的void返回方法
+	大白话：spring容器在启动过程中，他本身拥有一些资源（比如：我们的配置他封装成了对象，资源加载器），然后通过提供接口，用户去进行实现，
+	springboot通过回调的方式，将其资源传递给用户。在实现Aware接口的时候，应该只包含一个方法，并且方法参数只有一个，没有返回值。
+常用的Aware 
+1、BeanNameAware 获取容器中的bean名称。
+2、BeanClassLoaderAware 获取类加载器。
+3、BeanFactoryAware 获得bean创建工厂。
+4、EnvironmentAware 获得环境变量。
+5、EmbeddedValueResolverAware  获取spring容器加载的properties 文件属性值。
+6、ResourceLoaderAware 获得资源加载器。
+7、ApplicationEventPulisherAware   获得应用事件发布器。
+8、 MessageSourceAware 获得文件信息。
+9、ApplicationContextAware  获得当前应用上下文。
+
+自己实现一个Aware接口：
+@Component
+public class Flag {
+
+    private boolean canOperate = true;
+
+    public boolean isCanOperate() {
+        return canOperate;
+    }
+
+    public void setCanOperate(boolean canOperate) {
+        this.canOperate = canOperate;
+    }
+}
+-----
+
+public interface MyAware extends Aware {
+
+    void setFlag(Flag flag);
+}
+------
+
+@Component
+public class MyAwareProcessor implements BeanPostProcessor {
+
+    private final ConfigurableApplicationContext configurableApplicationContext;
+
+    public MyAwareProcessor(ConfigurableApplicationContext configurableApplicationContext) {
+        this.configurableApplicationContext = configurableApplicationContext;
+    }
+
+    @Override
+    public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+
+        if (bean instanceof Aware) {
+            if (bean instanceof MyAware) {
+                ((MyAware) bean).setFlag((Flag) configurableApplicationContext.getBean("flag"));
+            }
+        }
+        return bean;
+    }
+}
+
+---
+@Component
+public class ResultCommandLieRunner implements CommandLineRunner, EnvironmentAware, MyAware {
+
+    private Environment env;
+
+    private Flag fla;
+
+    @Override
+    public void run(String... args) throws Exception {
+        System.out.println(fla.isCanOperate());
+        System.out.println(env.getProperty("hyc"));
+    }
+
+    @Override
+    public void setEnvironment(Environment environment) {
+        this.env = environment;
+    }
+
+    @Override
+    public void setFlag(Flag flag) {
+        fla = flag;
+    }
+}

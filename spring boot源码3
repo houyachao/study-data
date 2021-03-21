@@ -1,0 +1,271 @@
+// 6、 准备容器---将启动类注入容器，为后续开启自动化配置奠定基础。
+private void prepareContext(ConfigurableApplicationContext context,
+			ConfigurableEnvironment environment, SpringApplicationRunListeners listeners,
+			ApplicationArguments applicationArguments, Banner printedBanner) {
+
+		// 1、设置容器环境，包括各种变量
+		context.setEnvironment(environment);
+		// 2、执行容器后置处理
+		postProcessApplicationContext(context);
+		// 3、执行容器中的ApplicationContextInitializer（包括 spring.factories 和自定义的实例）
+		applyInitializers(context);
+		// 4、 发送容器已经准备好的事件，通知各个监听器
+		listeners.contextPrepared(context);
+		// 5、打印log
+		if (this.logStartupInfo) {
+			logStartupInfo(context.getParent() == null);
+			logStartupProfileInfo(context);
+		}
+		// Add boot specific singleton beans
+		// 6、注册启动参数bean，这里将容器指定的参数封装成bean，注入容器。
+		ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
+		beanFactory.registerSingleton("springApplicationArguments", applicationArguments);
+		// 7、设置banner 就是spring boot 启动类，打印 spring  log
+		if (printedBanner != null) {
+			beanFactory.registerSingleton("springBootBanner", printedBanner);
+		}
+		if (beanFactory instanceof DefaultListableBeanFactory) {
+			((DefaultListableBeanFactory) beanFactory)
+					.setAllowBeanDefinitionOverriding(this.allowBeanDefinitionOverriding);
+		}
+		// Load the sources
+		// 8、获取我们的启动类指定的参数，可以是多个
+		Set<Object> sources = getAllSources();
+		Assert.notEmpty(sources, "Sources must not be empty");
+		// 9、加载我们的启动类，将启动类注入容器
+		load(context, sources.toArray(new Object[0]));
+		// 10、发布容器已加载的事件。
+		listeners.contextLoaded(context);
+	}
+
+
+// 3、执行容器中的ApplicationContextInitializer（包括 spring.factories 和自定义的实例）
+protected void applyInitializers(ConfigurableApplicationContext context) {
+		for (ApplicationContextInitializer initializer : getInitializers()) {
+			Class<?> requiredType = GenericTypeResolver.resolveTypeArgument(
+					initializer.getClass(), ApplicationContextInitializer.class);
+			Assert.isInstanceOf(requiredType, context, "Unable to call initializer.");
+			initializer.initialize(context);
+		}
+}
+/**
+ * 用于在刷新之前初始化Spring ConfigurableApplicationContext 回调接口。 通常 在需要对应用程序上下文进行一些编程初始化的web应用程序中使用。
+ * 例如，注册属性源或针对上下文环境激活配置文件。 鼓励ApplicationContextInitializer 处理器检测是否已实现spring的Ordered 接口，或者是否存在Order注释
+ * ，并在调用之前对实例进行相应的排序。
+ */
+public interface ApplicationContextInitializer<C extends ConfigurableApplicationContext> {
+
+	/**
+	 * Initialize the given application context.
+	 * @param applicationContext the application to configure
+	 */
+	void initialize(C applicationContext);
+}
+
+// 我们重写了 initialize() 方法，所以会调用我们自己实现的方法。    上述会调用其它实现ApplicationContextInitializer的类。如果通过配置文件properties，配置的初始化bean,
+// 会通过ApplicationContextInitializer  的子类 DelegatingApplicationContextInitializer 来加载
+/**
+ * @author HouYC
+ * @create 2020-12-27-10:40
+ *
+ *   方式1：
+ *  系统在初始化的时候，向系统中注册自己的bean
+ *
+ * @Order（1）：表示 系数越小，越先被加载
+ */
+@Order(1)
+public class FastInitialContext implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+
+    @Override
+    public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
+        ConfigurableEnvironment environment = configurableApplicationContext.getEnvironment();
+        Map<String, Object> map = Maps.newConcurrentMap();
+        map.put("key1", "values1");
+        MapPropertySource fastInitialContext = new MapPropertySource("fastInitialContext", map);
+
+        environment.getPropertySources().addLast(fastInitialContext);
+
+        System.out.println("run fastInitialContext");
+    }
+}
+
+
+===================================================================================================
+
+// 6、注册启动参数bean，这里将容器指定的参数封装成bean，注入容器。
+
+/**
+ *  在给定的bean 名称下，在bean 注册表中将给定的现有对象注册为单例。
+ *  给定的实例应该被完全初始化；注册表将不执行任何初始化回调（特别是不会调用InitializingBean 的 afterPropertiesSet方法），给定
+ *  的实例也不会接受任何销毁回调（例如Disposable Bean的destroy方法）。
+ *  在完整的Bean Factory 中运行时：如果您的bean应该接收初始化或销毁回调，请注册一个bean定义而不是现有实例。
+ *  通常在注册表配置期间调用，但也可用于单例的运行时注册，因此，注册表实现应同步单例访问。如果它支持BeanFactory的单利延迟初始化，则无论如何都必须这样做。
+ * @param beanName        bean 的名称
+ * @param singletonObject  现有单利bean
+ */
+void registerSingleton(String beanName, Object singletonObject);
+
+
+/**
+ * 共享bean 实例的通用注册表，实现SingletonBeanRegistry，允许注册应该通过Bean名称获得所有调用者共享的单例实例。
+ *
+ * 还支持在注册表关闭时销毁Disposable Bean 实例（可能与已注册的单例相对应）的注册。。可以注册bean之间的依赖关系以执行适当的关闭顺序。
+ *
+ *  此类主要用作Bean Factory 实现的基类，从而排除了单例bean实例的常见管理。注意，Configurable Bean Factory 接口扩展了Singleton Bean Registry 接口。
+ */
+public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements SingletonBeanRegistry {
+
+	/** Cache of singleton objects: bean name to bean instance. */
+	// 单例bean的缓存，bean的名字为Key, 实例为值
+	private final Map<String, Object> singletonObjects = new ConcurrentHashMap<>(256);
+
+	/** Cache of singleton factories: bean name to ObjectFactory. */
+	// 单例工厂的缓存， bean的名字为key， 实例工厂为值
+	private final Map<String, ObjectFactory<?>> singletonFactories = new HashMap<>(16);
+
+	/** Cache of early singleton objects: bean name to bean instance. */
+	// 早期单例对象的缓存，bean 的名字为key, 实例为值
+	private final Map<String, Object> earlySingletonObjects = new HashMap<>(16);
+
+	/** Set of registered singletons, containing the bean names in registration order. */
+	// 已注册的单例bean 集合，按注册顺序包含bean的名称
+	private final Set<String> registeredSingletons = new LinkedHashSet<>(256);
+
+	/** Names of beans that are currently in creation. */
+	// 当前正在创建bean 的名称
+	private final Set<String> singletonsCurrentlyInCreation =
+			Collections.newSetFromMap(new ConcurrentHashMap<>(16));
+
+	/** Names of beans currently excluded from in creation checks. */
+	// 当前从检查创建中排除bean的名称
+	private final Set<String> inCreationCheckExclusions =
+			Collections.newSetFromMap(new ConcurrentHashMap<>(16));
+
+	/** List of suppressed Exceptions, available for associating related causes. */
+	// 抑制异常列表，可用于关联相关的原因
+	@Nullable
+	private Set<Exception> suppressedExceptions;
+
+	/** Flag that indicates whether we're currently within destroySingletons. */
+	// 指示我们当前是否在destroySingletons中的标志
+	private boolean singletonsCurrentlyInDestruction = false;
+
+	/** Disposable bean instances: bean name to disposable instance. */
+	// 一次性bean实例，bean名称到一次性实例
+	private final Map<String, Object> disposableBeans = new LinkedHashMap<>();
+
+	/** Map between containing bean names: bean name to Set of bean names that the bean contains. */
+	// 在包含的bean名称之间映射，bean名称到bean包含的bean名称集
+	private final Map<String, Set<String>> containedBeanMap = new ConcurrentHashMap<>(16);
+
+	/** Map between dependent bean names: bean name to Set of dependent bean names. */
+	// 在从属bean 名称之间映射，从bean名称到从属bean名称集。
+	private final Map<String, Set<String>> dependentBeanMap = new ConcurrentHashMap<>(64);
+
+	/** Map between depending bean names: bean name to Set of bean names for the bean's dependencies. */
+	// 在相关的bean名称之间映射，bean名称到bean依赖项的bean名称集
+	private final Map<String, Set<String>> dependenciesForBeanMap = new ConcurrentHashMap<>(64);
+
+
+	@Override
+	public void registerSingleton(String beanName, Object singletonObject) throws IllegalStateException {
+		Assert.notNull(beanName, "Bean name must not be null");
+		Assert.notNull(singletonObject, "Singleton object must not be null");
+		synchronized (this.singletonObjects) {
+			// 先从缓存中获取，如果缓存中存在，则抛出一个异常，标识该实例已被绑定
+			Object oldObject = this.singletonObjects.get(beanName);
+			if (oldObject != null) {
+				throw new IllegalStateException("Could not register object [" + singletonObject +
+						"] under bean name '" + beanName + "': there is already object [" + oldObject + "] bound");
+			}
+			// 否则就添加bean实例
+			addSingleton(beanName, singletonObject);
+		}
+	}
+
+	/**
+	 * 将给定的单利对象添加到该工厂的单利缓存中
+	 * Add the given singleton object to the singleton cache of this factory.
+	 * <p>To be called for eager registration of singletons.
+	 * @param beanName the name of the bean
+	 * @param singletonObject the singleton object
+	 */
+	protected void addSingleton(String beanName, Object singletonObject) {
+		synchronized (this.singletonObjects) {
+			// 添加到缓存
+			this.singletonObjects.put(beanName, singletonObject);
+			// 单利工厂移除该bean
+			this.singletonFactories.remove(beanName);
+			this.earlySingletonObjects.remove(beanName);
+			// 已注册
+			this.registeredSingletons.add(beanName);
+		}
+	}
+}
+
+========================================================================================================================
+// 9、加载我们的启动类，将启动类注入容器\
+
+/**
+ *  将bean 加载到应用程序上下文   
+ * Load beans into the application context.
+ * @param context the context to load beans into
+ * @param sources the sources to load
+ */
+// 这里会将我们的启动类加载spring容器beanDefinitionMap中，为后续springBoot 自动化配置奠定基础，springBoot为我们提供的各种注解配置也与此有关。
+protected void load(ApplicationContext context, Object[] sources) {
+	if (logger.isDebugEnabled()) {
+		logger.debug(
+				"Loading source " + StringUtils.arrayToCommaDelimitedString(sources));
+	}
+	// getBeanDefinitionRegistry 获取bean 定义的注册表。  创建BeanDefinitionLoader：从基础源（xml，javaConfig）加载bean定义
+	BeanDefinitionLoader loader = createBeanDefinitionLoader(
+			getBeanDefinitionRegistry(context), sources);
+	if (this.beanNameGenerator != null) {
+		loader.setBeanNameGenerator(this.beanNameGenerator);
+	}
+	if (this.resourceLoader != null) {
+		loader.setResourceLoader(this.resourceLoader);
+	}
+	if (this.environment != null) {
+		loader.setEnvironment(this.environment);
+	}
+	loader.load();
+}
+
+这里参数即为我们项目启动时传递的参数：SpringApplication.run(SpringBootApplication.class, args);
+由于我们指定了启动类，所以上面也就是加载启动类到容器。
+
+// 根据数据源不同 加载不同的方式
+private int load(Object source) {
+		Assert.notNull(source, "Source must not be null");
+		if (source instanceof Class<?>) {
+			return load((Class<?>) source);
+		}
+		if (source instanceof Resource) {
+			return load((Resource) source);
+		}
+		if (source instanceof Package) {
+			return load((Package) source);
+		}
+		if (source instanceof CharSequence) {
+			return load((CharSequence) source);
+		}
+		throw new IllegalArgumentException("Invalid source type " + source.getClass());
+	}
+
+
+private int load(Class<?> source) {
+		if (isGroovyPresent()
+				&& GroovyBeanDefinitionSource.class.isAssignableFrom(source)) {
+			// Any GroovyLoaders added in beans{} DSL can contribute beans here
+			GroovyBeanDefinitionSource loader = BeanUtils.instantiateClass(source,
+					GroovyBeanDefinitionSource.class);
+			load(loader);
+		}
+		if (isComponent(source)) {
+			this.annotatedReader.register(source);
+			return 1;
+		}
+		return 0;
+	}

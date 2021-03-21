@@ -1,0 +1,86 @@
+// spring bean 生命周期
+
+
+// 我们创建一个对象的生命周期： 创建（实例化，初始化） ---》 使用 --》 销毁。。  而 spring 允许我们对三个过程（实例化，初始化，销毁）前后进行操作。
+// 实例化 是 为bean对象开辟空间（具体可以理解为构造函数的调用），初始化时对属性的初始化，这里属性初始化是属性注入（构造函数也可以有属性的初始化语句，
+// 	但不属于这一部分，属性注入是通过setter方法注入属性（不管是注解方式还是bean配置property属性方式，其实质都是通过属性的setter方法实现的）。
+
+
+/**
+ *
+ *  Bean 具体生命周期：
+ *
+ * 	1、postProcessBeanFactory(ConfigurableListableBeanFactory c): 
+ * 		工厂后置处理器，是ioc 容器初始化的一部分，他是对BeanDefinition 进行后处理，具体的作用就是可以修改配置文件的各个bean的配置。
+ *
+ * 	2、postProcessBeforeInstantiation(Class<?> c , String beanName):
+ * 		所有bean 对象 实例化之前执行，具体就是在调用构造函数之前进行调用。
+ * 		
+ * 	3、 bean 实例化，调用bean类构造函数。
+ *
+ *	4、 postProcessAfterInstantiation(Object bean, String beanName):
+ *		 bean 实例化之后，初始化之前调用。
+ *
+ *	5、 postProcessPropertyValue():
+ *		属性注入之前调用
+ *
+ *  6、 setBeanName(String beanName):
+ *  	属性注入后调用，该方法作用是让bean类知道自己所在的Bean的name 或 id 属性。
+ *
+ *  7、 setBeanFactory(BeanFactory factory):
+ *  	setBeanName后调用，该方法作用是让bean 类知道自己所在的Bean Factory的属性。
+ *  	
+ *  8、 postProcessBeforeInitialition(Object bean, String beanName):
+ *  	在初始化之前做一些预处理。
+ *  	
+ *  9、	afterPropertiesSet():
+ *  	bean类实现InitializingBean接口，重写该方法。初始化工作，但实现该接口这种方法和Spring耦合，不推荐（这一点DisposableBean一样）。
+ *
+ * 	10、 init():
+ *  	bean 进行实例化。。
+ * 
+ *	11、 postProcessAfterInitialition():
+ *		 bean 实例化之后进行一些处理。
+ *
+ *	12、 bean 使用，，工作
+ *	 
+ *  13、destory():
+ *  	 bean 销毁前执行。
+ *  	 
+ *  14、 实现destory() 方法，进行销毁。	 
+ */
+
+
+
+
+
+
+八月 12, 2016 5:19:48 下午 org.springframework.context.support.AbstractApplicationContext prepareRefresh
+信息: Refreshing org.springframework.context.support.ClassPathXmlApplicationContext@27b4fe4d: startup date [Fri Aug 12 17:19:48 CST 2016]; root of context hierarchy
+八月 12, 2016 5:19:48 下午 org.springframework.beans.factory.xml.XmlBeanDefinitionReader loadBeanDefinitions
+信息: Loading XML bean definitions from file [/Users/fuchaochao/joy/spring-test2/target/classes/config/spring/local/appcontext-service.xml]
+
+1.postProcessBeanFactory(BeanFactoryPostProcessor) 工厂后处理器, ApplicationContext容器初始化中refresh()中调用
+2.实例化bean之前调用,即调用bean类构造函数之前调用 com.fcc.spring.test.HelloWorld
+3.HelloWorld struct.......
+4.返回boolean,bean实例化后调用,并且返回false则不会注入属性
+5.postProcessPropertyValues,在属性注入之前调用...... beanName = helloWorld 属性名集合 : [bean property 'message']
+八月 12, 2016 5:19:48 下午 org.springframework.beans.factory.support.DefaultListableBeanFactory preInstantiateSingletons
+信息: Pre-instantiating singletons in org.springframework.beans.factory.support.DefaultListableBeanFactory@3ae4cdc3: defining beans [org.springframework.context.annotation.internalConfigurationAnnotationProcessor,org.springframework.context.annotation.internalAutowiredAnnotationProcessor,org.springframework.context.annotation.internalRequiredAnnotationProcessor,org.springframework.context.annotation.internalCommonAnnotationProcessor,helloWorld,com.fcc.spring.test.InitBeanPostProcessor#0,com.fcc.spring.test.InstanceBeanPostProcessor#0,com.fcc.spring.test.BeanFactoryPostProcessorTest#0,org.springframework.context.annotation.ConfigurationClassPostProcessor.importAwareProcessor]; root of factory hierarchy
+6.setBeanName(BeanNameAware) 属性注入后调用, 此时s = helloWorld
+7.setBeanFactory(BeanFactory) setBeanName后调用
+8.postProcessBeforeInitialization(BeanPostProcessor), bean = class com.fcc.spring.test.HelloWorld
+9.postProcessBeforeInitialization(InstantiationAwareBeanPostProcessor) 
+10.afterPropertiesSet(InitializingBean) processBeforeInitialization之后,配置的xml_init之前调用
+11.HelloWorld 初始化(init-method)
+12.postProcessAfterInitialization(BeanPostProcessor), bean = class com.fcc.spring.test.HelloWorld
+13.postProcessAfterInitialization(InstantiationAwareBeanPostProcessor) 
+14.Bean working, message = Hello World!
+八月 12, 2016 5:19:48 下午 org.springframework.context.support.AbstractApplicationContext doClose
+15.destroy(DisposableBean) 在processAfterInitialization之后,配置的xml_destroy之前调用
+信息: Closing org.springframework.context.support.ClassPathXmlApplicationContext@27b4fe4d: startup date [Fri Aug 12 17:19:48 CST 2016]; root of context hierarchy
+16.HelloWorld 销毁(destroy-method)
+八月 12, 2016 5:19:48 下午 org.springframework.beans.factory.support.DefaultSingletonBeanRegistry destroySingletons
+信息: Destroying singletons in org.springframework.beans.factory.support.DefaultListableBeanFactory@3ae4cdc3: defining beans [org.springframework.context.annotation.internalConfigurationAnnotationProcessor,org.springframework.context.annotation.internalAutowiredAnnotationProcessor,org.springframework.context.annotation.internalRequiredAnnotationProcessor,org.springframework.context.annotation.internalCommonAnnotationProcessor,helloWorld,com.fcc.spring.test.InitBeanPostProcessor#0,com.fcc.spring.test.InstanceBeanPostProcessor#0,com.fcc.spring.test.BeanFactoryPostProcessorTest#0,org.springframework.context.annotation.ConfigurationClassPostProcessor.importAwareProcessor]; root of factory hierarchy
+
+Process finished with exit code 0

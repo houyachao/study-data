@@ -1,0 +1,70 @@
+	/**
+	 * Run the Spring application, creating and refreshing a new
+	 * {@link ApplicationContext}.
+	 * @param args the application arguments (usually passed from a Java main method)
+	 * @return a running {@link ApplicationContext}
+	 */
+	public ConfigurableApplicationContext run(String... args) {
+		// 1、时间监控
+		StopWatch stopWatch = new StopWatch();
+		stopWatch.start();
+		ConfigurableApplicationContext context = null;
+		Collection<SpringBootExceptionReporter> exceptionReporters = new ArrayList<>();
+		configureHeadlessProperty();
+		// 2、获取并启动监听
+		SpringApplicationRunListeners listeners = getRunListeners(args);
+		listeners.starting();
+		try {
+			ApplicationArguments applicationArguments = new DefaultApplicationArguments(
+					args);
+			// 3、构造容器环境
+			ConfigurableEnvironment environment = prepareEnvironment(listeners,
+					applicationArguments);
+			// 4、设置忽略的bean
+			configureIgnoreBeanInfo(environment);
+
+			Banner printedBanner = printBanner(environment);
+			// 5、 创建容器
+			context = createApplicationContext();
+			exceptionReporters = getSpringFactoriesInstances(
+					SpringBootExceptionReporter.class,
+					new Class[] { ConfigurableApplicationContext.class }, context);
+			// 6、 准备容器
+			prepareContext(context, environment, listeners, applicationArguments,
+					printedBanner);
+			// 7、刷新容器
+			refreshContext(context);
+			// 8、刷新容器后的扩展接口
+			afterRefresh(context, applicationArguments);
+			stopWatch.stop();
+			if (this.logStartupInfo) {
+				new StartupInfoLogger(this.mainApplicationClass)
+						.logStarted(getApplicationLog(), stopWatch);
+			}
+			listeners.started(context);
+			callRunners(context, applicationArguments);
+		}
+		catch (Throwable ex) {
+			handleRunFailure(context, ex, exceptionReporters, listeners);
+			throw new IllegalStateException(ex);
+		}
+
+		try {
+			listeners.running(context);
+		}
+		catch (Throwable ex) {
+			handleRunFailure(context, ex, exceptionReporters, null);
+			throw new IllegalStateException(ex);
+		}
+		return context;
+	}
+
+	以上可以总结为：
+
+	1、 获取并启动监听
+	2、 构造容器环境
+	3、 创建容器
+	4、 实例化spring SpringBootExceptionReporter.class，用来支持启动的报错
+	5、 准备容器
+	6、 刷新容器
+	7、 刷新容器后的扩展接口

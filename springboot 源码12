@@ -1,0 +1,23 @@
+
+
+
+
+PropertiesPropertySourceLoader 类 主要加载 "properties", "xml"
+public class PropertiesPropertySourceLoader implements PropertySourceLoader {
+
+	private static final String XML_FILE_EXTENSION = ".xml";
+
+	@Override
+	public String[] getFileExtensions() {
+		return new String[] { "properties", "xml" };
+	}
+}
+
+YamlPropertySourceLoader 主要加载 "yml" , "yaml"
+public class YamlPropertySourceLoader implements PropertySourceLoader {
+
+	@Override
+	public String[] getFileExtensions() {
+		return new String[] { "yml", "yaml" };
+	}
+}

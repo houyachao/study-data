@@ -1,0 +1,57 @@
+
+
+
+核心标签库(Core)主要有: 基本输入输出、流程控制、迭代操作和URL 操作。
+
+--表达操作 分为三个常用标签：<c:out>、<c:set>、<c:remove>。
+ 
+<c:out> 主要用来显示数据的内容. 都可以是EL字段
+	属性：value： 需要显示出来的值。
+	     default：如果value的值为NULL，则显示default的值。
+	     escapeXml：是否转换特殊字符。
+
+<c:set> 主要用来将变量存储至JSP范围中或是JavaBean 的属性中。
+	属性：value: 要被存储的值
+	      var ：欲存入的变量名称
+	      scope：var变量的JSP范围
+	      target：为一JavaBean或java.util.Map对象
+	      property: 指定target对象的属性
+
+<c:remove> 移除指定域对象的指定属性值。
+
+
+--流程控制 四个标签：<c:if>、<c:choose>、<c:when>、<c:otherwise>
+
+<c:if> 必须要有test属性，没有else，但可以把判断的结果存储起来，以备后续使用
+	属性：  
+	test：如果表达式的结果为true，则执行体内容，false相反
+	var： 用来存储test运算后的结果，即true或false
+	scope：var变量的JSP范围。
+
+c:choose  c:when  c:otherwise 可以实现if..else if..else  if..else 的效果
+其中： c:choose 以c:when ,c:otherwise 的父标签出现。
+c:when ,c:otherwise 不能脱离 c:choose单独使用。
+c:otherwise 必须在c:when 之后使用。
+
+	
+迭代操作 两个标签：<c:forEach>和<c:forTokens>
+
+-<c:forEach> 为循环控制，它可以将集合(Collection) 中的成员循序浏览一遍，运作方式为当条件符合时，就会持续重复执行<c:forEach>的本体内容。
+属性：
+	var：用来存放现在指定的成员。(String类型)
+	items: 被迭代的集合对象。（Arrays,Collection,Interator,Enumeration,Map,String 类型）
+	varStatus:用来存放现在指定的相关成员信息。(String 类型)
+	begin: 开始位置。(int)
+	end: 结束位置。（int）
+	step：每次迭代的间隔数。（int）
+
+URL操作：
+ JSTL包含三个与URL操作有关的标签，他们分别为：<c:import>、<c:redirect>、<c:url>。它们的主要功能是：用来将其他文件的内容包含起来、网页的导向，还有url的产生。
+ 
+<c:url> : 产生一个url地址。可以Cookie是否可用来智能进行URL重写，对GET请求的参数进行编码，可以把产生的URL 存储在域对象的属性中。还可以使用c:param 为URL 添加参数。 c:url 会对参数进行自动的转码。 vale 中的 / 代表的是当前WEB应用的根目录。
+
+
+
+
+
+

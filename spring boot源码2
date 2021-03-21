@@ -1,0 +1,159 @@
+1、 获取并启动监听器
+SpringApplicationRunListeners listeners = getRunListeners(args);
+
+private <T> Collection<T> getSpringFactoriesInstances(Class<T> type,
+			Class<?>[] parameterTypes, Object... args) {
+		ClassLoader classLoader = getClassLoader();
+		// 该方法用来获取spring.factories对应的监听器。 会扫描spring.factories
+		Set<String> names = new LinkedHashSet<>(
+				SpringFactoriesLoader.loadFactoryNames(type, classLoader));
+		// 2、
+		List<T> instances = createSpringFactoriesInstances(type, parameterTypes,
+				classLoader, args, names);
+		AnnotationAwareOrderComparator.sort(instances);
+		return instances;
+}
+
+
+// 2、
+private <T> List<T> createSpringFactoriesInstances(Class<T> type,
+			Class<?>[] parameterTypes, ClassLoader classLoader, Object[] args,
+			Set<String> names) {
+		List<T> instances = new ArrayList<>(names.size());
+		for (String name : names) {
+			try {
+				// 装载class文件到内存
+				Class<?> instanceClass = ClassUtils.forName(name, classLoader);
+				Assert.isAssignable(type, instanceClass);
+				Constructor<?> constructor = instanceClass
+						.getDeclaredConstructor(parameterTypes);
+				// 3、 使用反射创建实例
+				T instance = (T) BeanUtils.instantiateClass(constructor, args);
+				instances.add(instance);
+			}
+			catch (Throwable ex) {
+				throw new IllegalArgumentException(
+						"Cannot instantiate " + type + " : " + name, ex);
+			}
+		}
+		return instances;
+	}
+
+// 3、通过上面反射 会触发EventPublishingRunListener 的构造函数
+public EventPublishingRunListener(SpringApplication application, String[] args) {
+		this.application = application;
+		this.args = args;
+		this.initialMulticaster = new SimpleApplicationEventMulticaster();
+		for (ApplicationListener<?> listener : application.getListeners()) {
+			this.initialMulticaster.addApplicationListener(listener);
+		}
+	}
+
+@Override
+public void addApplicationListener(ApplicationListener<?> listener) {
+		synchronized (this.retrievalMutex) {
+			// Explicitly remove target for a proxy, if registered already,
+			// in order to avoid double invocations of the same listener.
+			Object singletonTarget = AopProxyUtils.getSingletonTarget(listener);
+			if (singletonTarget instanceof ApplicationListener) {
+				this.defaultRetriever.applicationListeners.remove(singletonTarget);
+			}
+			//内部类对象
+			this.defaultRetriever.applicationListeners.add(listener);
+			this.retrieverCache.clear();
+		}
+	}
+
+上述方法定义在SimpleApplicationEventMulticaster父类AbstractApplicationEventMulticaster中。
+关键代码为this.defaultRetriever.applicationListeners.add(listener);，这是一个内部类，用来保存所有的监听器。
+也就是在这一步，将spring.factories中的监听器传递到SimpleApplicationEventMulticaster中。
+
+
+==============================================================================================================================
+
+2、 启动监听器
+public void starting() {
+		for (SpringApplicationRunListener listener : this.listeners) {
+			listener.starting();
+		}
+}
+@Override
+public void starting() {
+		this.initialMulticaster.multicastEvent(
+				new ApplicationStartingEvent(this.application, this.args));
+}
+@Override
+public void multicastEvent(final ApplicationEvent event, @Nullable ResolvableType eventType) {
+		ResolvableType type = (eventType != null ? eventType : resolveDefaultEventType(event));
+
+		// getApplicationListeners（），获取所有监听器-------（返回与给定*事件类型匹配的ApplicationListeners的集合。不匹配的听众会尽早被排除在外）
+		for (final ApplicationListener<?> listener : getApplicationListeners(event, type)) {
+			Executor executor = getTaskExecutor();
+			if (executor != null) {
+				// 异步执行
+				executor.execute(() -> invokeListener(listener, event));
+			}
+			else {
+				// 同步执行
+				invokeListener(listener, event);
+			}
+		}
+}
+
+/**
+ * 使用给定的事件去调用给定的监听器
+ * @param listener the ApplicationListener to invoke
+ * @param event the current event to propagate
+ * @since 4.1
+ */
+protected void invokeListener(ApplicationListener<?> listener, ApplicationEvent event) {
+		ErrorHandler errorHandler = getErrorHandler();
+		if (errorHandler != null) {
+			try {
+				doInvokeListener(listener, event);
+			}
+			catch (Throwable err) {
+				// 异常执行
+				errorHandler.handleError(err);
+			}
+		}
+		else {
+			// 执行监听器
+			doInvokeListener(listener, event);
+		}
+}
+
+@SuppressWarnings({"unchecked", "rawtypes"})
+private void doInvokeListener(ApplicationListener listener, ApplicationEvent event) {
+		try {
+			// 这里，如果我们实现了自己的监听器，可以找到并执行我们自己实现的监听器
+			listener.onApplicationEvent(event);
+		}
+		catch (ClassCastException ex) {
+			String msg = ex.getMessage();
+			if (msg == null || matchesClassCastMessage(msg, event.getClass())) {
+				// Possibly a lambda-defined listener which we could not resolve the generic event type for
+				// -> let's suppress the exception and just log a debug message.
+				Log logger = LogFactory.getLog(getClass());
+				if (logger.isTraceEnabled()) {
+					logger.trace("Non-matching event type for listener: " + listener, ex);
+				}
+			}
+			else {
+				throw ex;
+			}
+		}
+	}
+
+
+/**
+ * @author 侯亚超
+ * 自定义监听器， 配置spring.factories
+ */
+@Order(1)
+public class FirstListener implements ApplicationListener<ApplicationStartedEvent> {
+    @Override
+    public void onApplicationEvent(ApplicationStartedEvent event) {
+        System.out.println("hello first");
+    }
+}

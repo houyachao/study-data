@@ -1,0 +1,123 @@
+
+
+
+
+
+
+Filter（过滤器）
+
+Filer 的基本功能是对Servlet 容器调用Servlet的过程进行拦截，从而在Servlet进行响应处理的前后实现一些特殊的功能。
+在Servlet API 中定义了三个接口类来开供开发人员编写 Filter程序：Filter，FilterChain，FilterConfig。
+Filter程序是一个实现了Filter接口的java类，与Servlet程序相似，它由Servlet容器进行调用和执行。
+Filter程序需要在web.xml文件中进行注册和设置它所能拦截的资源：Filter程序可以拦截JSP，Servlet，静态图片文件和静态HTML文件。
+
+
+在《filter-mapping》
+<dispatcher> 指定过滤器所拦截的资源被Servlet容器调用的方式。可以是REQUEST, INCLUDE, FORWARD 和ERROR 之一，默认REQUEST，可以设置多个<dispatcher> 子元素用来指定FilterConfig对资源的多种调用方式进行拦截。  
+
+<dispatcher> 子元素可以设置的值机器意义：
+	-REQUSET：当用户直接访问页面时，Web容器将会调用过滤器。如果目标资源时通过RequestDispatcher 的include() 或forward() 方法访问时，那么该过滤器就不会被调用。
+	-FORWARD：如果目标资源是通过RequestDispatcher的 forward（）方法访问时，那么该过滤器将被调用，除此之外，该过滤器不会被调用。
+	-ERROR： 如果目标资源是通过声明式异常处理机制调用时，那么该过滤器将被调用。除此之外，过滤器不会被调用。
+	-INCLUDE：如果目标资源是通过RequestDispatcher 的include()方法访问时，那么该过滤器将被调用，除此之外，该过滤器将不会被调用。
+
+
+1.典型例题：
+是浏览器不缓冲页面的过滤器：
+  -有3个HTTP响应头字段都可以禁止浏览器缓冲当前页面，他们在Servlet中的示例代码如下：
+   -response.setDateHeader("Expires",-1);
+   -response.setHeader("Cache-Control","no-cache");
+   -response.setHeader("Pragma","no-cache");
+  -并不是所有的浏览器都能完全支持上面的三个响应头，因此最好是同时使用上面的三个响应头。
+   
+2.典型例题：
+
+字符编码的过滤器：
+  -通过配置参数 encoding 指明使用何种字符编码，以处理Html Form 请求参数的中文问题。
+①先在配置文件中声明encoding
+   <context-param>
+	<param-name>encoding</param-name>
+	<param-value>UTF-8</param-value>
+   </context-param>
+
+②在Filter中继承HttpFilter
+声明一个private String encoding;
+    init(){
+	encoding=getFilterConfig().getServletContext().getInitParameter("encoding");
+       }
+
+③  设置编码方式：
+	request.setCharacterEncoding(encoding);
+ 	filterChain.doFilter(request,response);
+
+④在web.xml 配置文件中 配置Filter 的映射
+
+
+
+3.典型应用：
+检测用户是否登录的过滤器：
+
+情景：系统中的某些页面只有在正常登录后才可以使用，用户请求这些页面要检查session中有无该用户信息，所以在必要的页面加session加非常的麻烦。
+解决方案：编写一个用于检查用户是否登录的过滤器，如果用户未登录，则重定向到指定的登录页面。
+要求：需检查的在Session 中保存的关键字；如果用户未登录，需重定向到指定的页面（URL不包括ContextPath）；不做检查的URL列表（以分号分开，并且URL中不包括ContextPath）都要采取可配置的方式。
+①在配置文件下
+  <!--用户信息放入到session 中键的名字 -->
+	<context-param>
+	<param-name>userSessionKey</param-name>
+	<param-value>USERSESSIONKEY</param-value>
+	</context-param>
+  <!-- 若未登录，需要重定向的页面-->
+	<context-param>
+	<param-name>redirctPage</param-name>
+	<param-value>/login/login.jsp</param-value>
+	</context-param>
+  <!--不需要拦截（或检查）的URL列表-->
+	<context-param>
+	<param-name>uncheckedUrls</param-name>
+	<param-value>/login/a.jsp,/login/list.jsp,/login/login.jsp,/login/dpLogin.jsp</param-value>
+	</context-param>
+在doLogin中
+//1.获取用户的登录信息
+//2.若登录信息完整，则把登录信息存放在HttpSession
+//3.重定向到list.jsp
+在loginFilter中
+//1.从web.xml 获取userSessionKey，rediretPage，uncheckedUrls
+//1.获取请求参数的servletPath
+//2.检查1获取的servletPath是否为不需要检查的URL中的一个，若是，则直接放行，方法结束
+//3.从session 中获取sessionKey对象的值，若值不存在，则重定向到rediretPage
+//4.若存在，则放行，允许访问
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

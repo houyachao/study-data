@@ -1,0 +1,37 @@
+监听器：专门用于对其他对象身上发生的事件或状态改变进行监听和相应处理的对象，当被监视的对象发生情况时，立即采取相应的行动。
+Servlet监听器：Servlet规范中定义的一种特殊类，它用于监听web 应用程序中的ServletContext，HttpSession和ServletRequest等域对象的创建与销毁事件，以及监听那些域对象中的属性发生修改的事件。
+
+ServletContextListener接口用于监听ServletContext对象的创建和销毁事件。
+实现两个方法然后在web.xml文件配置,,,当前应用被加载到服务器时被创建，当前应用被卸载时销毁。ServletContextListener是最常用的Listener，可以在当前web应用被加载时对当前web应用的相关资源进行初始化操作：创建数据库连接池，创建Spring的IOC容器，读取当前WEB应用的初始化参数。
+<listener>
+<listener-class></listener-class>
+</listener>
+
+监听器的分类：
+1.）监听域对象（pageContext,request,applocation）自身的创建和销毁事件的监听器
+	ServletContextListener,   ServletRequestListener,    HttpSessionListener
+2.）监听域对象中的属性的增加和删除的事件的监听器
+3.）监听绑定到HttpSession域中的某个对象的状态的事件监听器
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

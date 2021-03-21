@@ -1,0 +1,127 @@
+Ajax: 允许浏览器与服务器通信而无需刷新当前页面的技术。
+XMLHttpRequest：该对象是对js 的一个扩展，可使网页与服务器进行通信，是创建Ajax 应用的最佳选择。
+
+XMLHttpRequest的方法：
+	open("method","url"):建立服务器的调用，Method参数可以是Get，post，url参数可以是相对URL或绝对的URL。
+	send(content)：向服务器发送请求。
+	属性：
+	onreadystatechange :每个状态改变都会触发这个时间处理器，通常会调用一个JavaScript函数。
+	readyState：请求的状态，有5个可能值，0=未初始化，1=正在加载，2=已经加载，3=交互中，4=完成。
+	responseText：服务器的响应，表示为一个串。
+	responseXML：服务器的响应，表示为XML。这个对象可以解析为DOM对象。
+	status：服务器的HTTp 状态码（200对应OK，404对应NotFount，等）
+	statisText:HTTP状态吗的响应文本（OK或NotFount等）
+
+var jsonStr="{'name':'atguigu'}";
+	
+	//把一个字符串转为JSON 对象。使用eval() 方法
+	var testObject=eval("("+jsonStr+")");
+	alert(testObject);	
+
+Ajax 传输数据的3中方式：
+①XML：笨重，解析困难。但XML 是通用的数据交换格式。
+②HTML：不需要解析可以直接放到文档中。若仅更新一部分区域。但传输的数据不是很方便，且HTML 代码需要拼装完成。
+③JSON： 小巧，有面向对象的特征，且有很多第三方的jar包可以把JAVA对象或集合转为JSON字符串。
+
+使用jQuery 完成Ajax 操作：
+① load方法：可以用于HTML 文档的元素节点，把结果直接加为对应节点的子元素。通常而言，load 方法加载后的数据是一个HTML 片段。
+	var $obj=...
+	var url=...
+	var args={key:value,...};
+	$obj.load(url,args);
+
+② $.get,$.post,$.getJSON :更加灵活，除去使用load 方法，大部分时候都使用这3个方法。
+	url:Ajax 请求的目标URL
+	args:传递的参数：JSON 类型
+	data:Ajax 响应成功后的数据，可能是XML，HTML，JSON
+   $.get(url,args,function(data){
+   
+   })
+
+$(function(){
+ 		alert("a");
+ 		$("a").click(function(){
+ 			var url=this.href;
+ 			var args={"time":new Date()};
+ 			
+ 			$.get(url,args,function(date){
+ 				var name=data.person.name;
+ 				var email=data.person.email;
+ 				var website=data.person.website;
+ 				
+ 				$("#details").empty()
+ 							 .append("<h2><a href='mailto:"+email+"'>"+name+"</a></h2>")
+ 							 .append("<a href='"+website+"'>"+website+"</a>");
+ 			},"JSON");
+ 		return false;
+ 		});
+ 	})
+	
+  
+
+
+  请求JSON 数据
+  $.get(url,args,function(data){
+   
+  },"JSON");
+  $.post(url,args,function(data){
+  
+  },"JSON");
+
+$(function(){
+ 		alert("a");
+ 		$("a").click(function(){
+ 			var url=this.href;
+ 			var args={"time":new Date()};
+ 			
+ 			$.getJSON(url,args,function(date){
+ 				var name=data.person.name;
+ 				var email=data.person.email;
+ 				var website=data.person.website;
+ 				
+ 				$("#details").empty()
+ 							 .append("<h2><a href='mailto:"+email+"'>"+name+"</a></h2>")
+ 							 .append("<a href='"+website+"'>"+website+"</a>");
+ 			});
+ 		return false;
+ 		});
+ 	})
+
+
+使用JackSon     
+①导入jar包
+jackson-annotations-2.2.1.jar
+jackson-core-2.2.1.jar
+jackson-databind-2.2.1.jar
+②创建ObjectMappter 对象
+	ObjectMappter mapper=new ObjectMappter();
+③调用mapper 的writeValueAsString() 方法把Java对象或集合转为一个JSON 字符串
+String jsonStr=mapper.writeValueAsString(对象)；
+④注意：JackSon 使用getter 方法来定位JSON 对象的属性。
+⑤可以通过添加注解org.codehaus.jackson.annotate.JsonIgnore
+ 来忽略某一个getter 定义的属性。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

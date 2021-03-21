@@ -1,0 +1,170 @@
+配置bean：
+	class: bean 的全类名，通过反射的方式在IOC 容器中创建Bean，所有要求Bean 中必须有无参数的构造器。
+	id：表示容器中的bean ，id唯一。
+
+ApplicationContext：代表IOC 容器。
+ApplicationContext：主要的实现类，ClassPathXMLApplicationContext：从类路径下加载配置文件。
+
+使用构造器注入属性值可以指定参数的位置和参数的类型！以区分重载的构造器。
+<bean id="car2" class="com.atguigu.spring.beans.Car">
+	<constructor-arg value="Baoma" type="java.lang.String"></constructor-arg>
+	//如果字面值包含特殊字符可以使用<![CDATA[]]> 包括起来
+	<constructor-arg type="java.lang.String"><value><![CDATA[<ShangHai^>]]><!value></constructor-arg>
+</bean>
+
+可以使用property 的ref 属性建立bean 之间的引用关系。 ref为bean 的ID
+<property name="car" ref="car2"></property>
+可以使用专用的<null />元素标签为Bean的字符串或其他对象类型的属性注入NULL值。
+spring 支持级联属性的配置。
+<property name="car.maxSpeed" value="2250"></property>
+
+<bean id="person3" class="com.atguigu.spring.Person">
+	<property name="name" value="Mike"></property>
+	<property name="age" value="25"></property>
+	<property name="cars"> 
+	//使用list 配置集合属性
+	<list>
+	<ref bean="car"/>
+	<ref bean="car2"/>
+	</list>	
+	</property>
+</bean>
+
+使用map 节点及map 的entry 子节点配置Map 类型的成员变量
+<bean id="person3" class="com.atguigu.spring.Person">
+	<property name="name" value="Mike"></property>
+	<property name="age" value="25"></property>
+	<property name="cars">
+	<map>
+	<entry key="AA" value-ref="car"></entry>
+	<entry key="BB" value-ref="car2"></entry>
+	</map>
+	</property>
+</bean>
+
+配置Properties 属性值
+<bean id="person3" class="com.atguigu.spring.Person">
+	<property name="properties">
+	<props>
+	<prop key="user">root</prop>
+	<prop key="password">456654</prop>
+	<prop key="jdbcUrl">jdbc:mysql:///test</prop>
+	<prop key="driverClass">com.mysql.jdbc.Driver</prop>
+	</props>
+	</property>
+</bean>
+
+
+配置单例的集合bean, 以供多个bean 进行引用，需要导入util 命名空间
+<util:list id="cars">
+	<ref bean="car"/>
+	<ref bean="car2">
+</util:list>
+
+
+通过p 命名空间为 bean 的属性赋值，需要先导入 p 命名空间,相对于传统的配置方式更加的简洁
+</bean id="person2" class="com.atguigu.spring.beans" p:age="30" p:name="Queen" p:cars-ref="cars"></bean>
+
+
+可以使用autowire 属性指定自动装配的方式。
+byName 根据bean 的名字和当前bean的setter 风格的属性名进行自动装配，若有匹配的，则进行自动装配，若没有匹配的，则不装配。
+byType 根据bean 的类型和当前bean 的属性的类型进行自动装配。 若IOC 容器中有1个以上的类型匹配的bean，则抛异常
+<bean id="person" class="com.atguigu.spring.beans" p:name="Tom" autowire="byType"></bean>
+
+
+抽象bean：bean的abstract 属性为 true 的bean，这样的bean不能被IOC容器实例化，只用来被继承配置. 若某一个bean 的class 属性没有指定，则该bean 必须是一个抽象bean。
+<bean id="address" p:city="BeiJing~" p:street="WuDaoHou" abstract="true"></bean>
+bean 配置的继承：使用bean的parent 属性指定继承那个bean的配置
+<bean id="address2" class="com.atguigu.spring.bean" p:city="BeiJing" p:street="DaZhongSi" parent="address"></bean>
+
+
+
+要求再配置Person 时，必须有一个关联的car！ 换句话说person 这个 bean 依赖于Car 这个bean。
+<bean id="person" class="com.atguigu.spring.beans" p:name="Tom" p:address-ref="address2" depends-on="car"></bean>
+
+使用bean 的scope 属性来配置bean 的作用域
+singleton ：默认值，容器初始时创建bean实例，在整个容器的生命周期内只创建这一个bean，单例的。
+prototype：原型的，容器初始化时不创建bean的事例，而是在每次请求时都创建一个新的Bean实例，并返回。
+
+
+
+导入属性文件
+<context:property-placeholder location="classpath:db.properties"/>
+<bean id="dataSource" class="com.atguigu.c3p0">
+  //使用外部化属性文件的属性
+<property name="user" value="${user}"></property>
+<property name="password" value="${password}"></property>
+<property name="driverClass" value="${driverClass}"></property>
+<property name="jdbcUrl" value="${jdbcUrl}"></property>
+</bean>
+
+SpEL 为bean 的属性进行动态赋值。语法：使用#{} 作为定界符。
+调用静态方法或静态属性：通过T()调用一个类的静态方法，它将返回一个Class Object，然后再调用相应的方法或属性。
+
+使用SpEL来引用其他的Bean
+<property name="car" value="#{car}"></property>
+
+实现BeanPostProcessor 接口，并具体提供
+Object postPprocessBeforeInitialization(Object bean,String beanName):init-method之前被调用。
+Object postPprocessAfterInitialization(Object bean,String beanName):init-method之后被调用的实现。
+bean: bean 实例本身，
+beanName： IOC 容器配置的bean的名字。
+返回值：是实际上返回给用户的那个Bean，注意：可以在以上两个方法中修改返回的bean，甚至返回一个新的bean。
+配置bean 的后置处理器：不需要配置id, IOC 容器自动识别是一个BeanPostProcessor
+
+
+通过静态工厂方法来配置bean，注意不是配置静态工厂方法实例，而是配置bean实例
+class 属性：指向静态工厂方法的全类名。
+factory-method：指向静态工厂方法的名字。
+constructor-arg：如果工厂方法需要传入参数，则使用constructor-arg 来配置参数
+<bean id="car1" class="com.atguigu.spring.beans.factory" factory-method="getCar">
+<constructor-arg value="audi"></constructor-arg>
+</bean>
+
+
+
+配置工厂的实例
+<bean id="carFactory" class="com.atguigu.spring.factory"></bean>
+通过实例工厂方法来配置bean
+factory-bean 属性：指向实例工厂方法的bean。
+factory-method ：指向静态工厂方法的名字。
+constructor-arg：如果工厂方法需要传入参数，则使用constructor-arg 来配置参数。
+<bean id="car2" factory-bean="carFactory" factory-method="getCar">
+<constructor-arg value="ford"></constructor-arg>
+</bean>
+
+通过FactoryBean 来配置Bean 的实例             ：需要实现FactoryBean
+class：指向FactoryBean的全类名
+property：配置FactoryBean 的属性。
+
+但实际返回的实例确实FactoryBean 的getObject() 方法返回的实例。
+
+
+组件扫描(component scanning):  Spring 能够从 classpath 下自动扫描, 侦测和实例化具有特定注解的组件. 
+特定组件包括:
+@Component: 基本注解, 标识了一个受 Spring 管理的组件
+@Respository: 标识持久层组件
+@Service: 标识服务层(业务层)组件
+@Controller: 标识表现层组件
+对于扫描到的组件, Spring 有默认的命名策略: 使用非限定类名, 第一个字母小写. 也可以在注解中通过 value 属性值标识组件的名称
+当在组件类上使用了特定的注解之后, 还需要在 Spring 的配置文件中声明 <context:component-scan> ：
+base-package 属性指定一个需要扫描的基类包，Spring 容器将会扫描这个基类包里及其子包中的所有类. 
+当需要扫描多个包时, 可以使用逗号分隔.
+如果仅希望扫描特定的类而非基包下的所有类，可使用 resource-pattern 属性过滤特定的类，
+<context:include-filter> 子节点表示要包含的目标类
+<context:exclude-filter> 子节点表示要排除在外的目标类
+<context:component-scan> 下可以拥有若干个 <context:include-filter> 和 <context:exclude-filter> 子节点
+
+annotation： 所有标注了XxxAnnotation 的类。该类型采用目标类是否标注了某个注解进行过滤。
+assinable: 所有继承或扩展XxxService 的类。该类型采用目标类是否继承或扩展某个特定类进行过滤。
+
+
+
+
+
+
+
+
+
+
+

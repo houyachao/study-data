@@ -1,0 +1,116 @@
+// 7、刷新容器
+
+@Override
+public void refresh() throws BeansException, IllegalStateException {
+	// 先来个锁，不然refresh() 还没结束，你又来个启动或销毁容器的操作，就乱套了。
+	synchronized (this.startupShutdownMonitor) {
+		// Prepare this context for refreshing.
+		// 1、 刷新上下文环境，初始化上下文环境，对系统的环境变量或者系统属性进行准备和校验，  重写initPropertySource方法就好了
+		// 准备工作，记录下容器的启动时间，标记为已启动状态，处理配置文件的占位符。
+		prepareRefresh();
+
+		// 2、 初始化Bean Factory，ConfigurableListableBeanFactory作为基本的IOC 容器，下面操作都是基于这个beanFactory操作的
+		// // 这步比较关键，这步完成后，配置文件就会解析成一个个 Bean 定义，注册到 BeanFactory 中，
+     	// 当然，这里说的 Bean 还没有初始化，只是配置信息都提取出来了，
+      	// 注册也只是将这些信息都保存到了注册中心(说到底核心是一个 beanName-> beanDefinition 的 map)
+		ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
+
+		// Prepare the bean factory for use in this context.
+		// 3、 为上下文准备Bean Factory，即将BeanFactory的各种功能进行填充，如常用的注解@Autowired. @Qualifiter等，
+		//  设置SPEL表达式#{key}的解析器
+		//  设置资源编辑注册器，如PerpertyEditorSupper的支持
+		//  添加ApplicationContextAwareProcessor处理器
+		//  在依赖注入忽略实现*Aware的接口，如EnvironmentAware、ApplicationEventPublisherAware等
+		//  注册依赖，如一个bean的属性中含有ApplicationEventPublisher(beanFactory)，则会将beanFactory的实例注入进去
+		//  
+		//  设置类加载器，添加多个beanPostProcessor
+		prepareBeanFactory(beanFactory);
+
+		try {
+			// Allows post-processing of the bean factory in context subclasses.
+
+			// 4、 提供子类覆盖的额外处理，即子类处理自定义的BeanFactoryPostProcess
+			postProcessBeanFactory(beanFactory);
+
+			// Invoke factory processors registered as beans in the context.
+			// 5、激活各种BeanFactory处理器,包括BeanDefinitionRegistryBeanFactoryPostProcessor和普通的BeanFactoryPostProcessor
+			//   执行对应的postProcessBeanDefinitionRegistry方法 和  postProcessBeanFactory方法
+			invokeBeanFactoryPostProcessors(beanFactory);
+
+			// Register bean processors that intercept bean creation.
+			// 6、 注册拦截Bean创建的Bean处理器，即注册BeanPostProcessor，不是BeanFactoryPostProcessor，注意两者的区别
+			//    注意，这里仅仅是注册，并不会执行对应的方法，将在bean的实例化时执行对应的方法
+			//    注册BeanPostProcess的实现类和BeanFactoryPostProcessor，此接口两个方法分别是在Bean初始化前后执行
+			registerBeanPostProcessors(beanFactory);
+
+			// Initialize message source for this context.
+			// 7、初始化上下文中的资源文件，如国际化文件的处理等
+			initMessageSource();
+
+			// Initialize event multicaster for this context.
+			// 8、 初始化上下文事件广播器，并放入applicatioEventMulticaster,如ApplicationEventPublisher
+			initApplicationEventMulticaster();
+
+			// Initialize other special beans in specific context subclasses.
+			// 9、 给子类扩展初始化其他Bean
+			onRefresh();
+
+			// Check for listener beans and register them.
+			// 10、 在所有bean中查找listener bean，然后注册到广播器中
+			registerListeners();
+
+			// Instantiate all remaining (non-lazy-init) singletons.
+			// 11、设置转换器
+			//   注册一个默认的属性值解析器
+			//	 冻结所有的bean定义，说明注册的bean定义将不能被修改或进一步的处理
+			//	 初始化剩余的非惰性的bean，即初始化非延迟加载的bean
+			//	 
+			finishBeanFactoryInitialization(beanFactory);
+
+			// Last step: publish corresponding event.
+			/**
+			 * 初始化生命周期处理器DefaultLifecycleProcessor，DefaultLifecycleProcessor含有start方法和stop方法，spring启动的时候调用start方法开始生命周期，
+			 * spring关闭的时候调用stop方法来结束生命周期，通常用来配置后台程序，启动有一直运行，如一直轮询kafka
+			 * 启动所有实现了Lifecycle接口的类
+			 * 通过spring的事件发布机制发布ContextRefreshedEvent事件，以保证对应的监听器做进一步的处理，即对那种在spring启动后需要处理的一些类，这些类实现了
+			 * ApplicationListener<ContextRefreshedEvent> ,这里就是要触发这些类的执行(执行onApplicationEvent方法)另外，
+			 * 	spring的内置Event有ContextClosedEvent、ContextRefreshedEvent、ContextStartedEvent、ContextStoppedEvent、RequestHandleEvent
+			 * 完成初始化，通知生命周期处理器lifeCycleProcessor刷新过程，同时发出ContextRefreshEvent通知其他人
+			 */
+			finishRefresh();
+		}
+
+		catch (BeansException ex) {
+			if (logger.isWarnEnabled()) {
+				logger.warn("Exception encountered during context initialization - " +
+						"cancelling refresh attempt: " + ex);
+			}
+
+			// Destroy already created singletons to avoid dangling resources.
+			destroyBeans();
+
+			// Reset 'active' flag.
+			cancelRefresh(ex);
+
+			// Propagate exception to caller.
+			throw ex;
+		}
+
+		finally {
+			// Reset common introspection caches in Spring's core, since we
+			// might not ever need metadata for singleton beans anymore...
+			resetCommonCaches();
+		}
+	}
+}	
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,159 @@
+
+
+1、首先我们需要先明白几个概念。。
+
+1.1、register 服务注册：eureka 客户端向eureka 服务端注册，它提供自身的元数据，比如 IP地址，端口，运行状况及url 等。
+
+1.2、renew 服务续约：eureka 客户端会每30秒发送一次心跳来续约，通知服务端自己还存活。正常情况下，服务端如果90秒没有收到eureka 客户端的续约，
+    他会将其注册表中删除。
+
+1.3、fetch Registries：获取注册表信息： eureka 客户端从服务器获取注册表信息，并将其缓存在本地，客户端会使用该信息查找其他服务，从而进行远程调用，
+    该注册列表信息定期（每30秒）更新一次，每次返回与eureka 客户端的缓存信息不同时，eureka 客户端自动处理，如果某种原因导致注册表信息不能及时匹配，
+    eureka将重新获取整个注册表信息。
+
+1.4、cancel：服务下线：Eureka 客户端在程序关闭时向Eureka 服务器发送取消请求，发送请求后，该客户端将从服务器的实例注册表中删除。
+
+1.5、Eviction：服务剔除：在默认情况下，如果eureka 客户端连续90秒都没有向eureka 服务器发送服务续约，及心跳，eureka 服务端将该实例从服务列表中删除。
+
+/**
+ * 以下是 eureka 客户端原理
+ */
+
+//  DiscoveryClient 类，这个类是主要实现将eureka 客户端实例 注册到 eureka 服务端的。
+public class DiscoveryClient implements EurekaClient {    
+    @Inject
+    DiscoveryClient(ApplicationInfoManager applicationInfoManager, EurekaClientConfig config, AbstractDiscoveryClientOptionalArgs args,
+                    Provider<BackupRegistry> backupRegistryProvider) {
+        
+        
+        this.applicationInfoManager = applicationInfoManager;
+        // 1、从配置文件中获取信息
+        InstanceInfo myInfo = applicationInfoManager.getInfo();
+
+        clientConfig = config;
+        staticClientConfig = clientConfig;
+        transportConfig = config.getTransportConfig();
+        // 获取实例
+        instanceInfo = myInfo;
+        
+        // 。。减少不必的代码
+
+        // 2、初始化所有计划的任务，比如 建立心跳，从服务器端获取注册表到缓存等。
+        initScheduledTasks();
+    }
+
+}
+
+// 实例要执行的计划
+private void initScheduledTasks() {
+        // 1、判断是否需要从eureka 服务端获取注册表信息
+        if (clientConfig.shouldFetchRegistry()) {
+            // 每30秒获取一次
+            int registryFetchIntervalSeconds = clientConfig.getRegistryFetchIntervalSeconds();
+            // 超时时间为10
+            int expBackOffBound = clientConfig.getCacheRefreshExecutorExponentialBackOffBound();
+            scheduler.schedule(
+                    new TimedSupervisorTask(
+                            "cacheRefresh",
+                            scheduler,
+                            cacheRefreshExecutor,
+                            registryFetchIntervalSeconds,
+                            TimeUnit.SECONDS,
+                            expBackOffBound,
+                            new CacheRefreshThread()
+                    ),
+                    registryFetchIntervalSeconds, TimeUnit.SECONDS);
+        }
+
+        // 2、判断是否需要将eureka 客户端实例注册到eureka服务器端
+        if (clientConfig.shouldRegisterWithEureka()) {
+            // 返回客户端的续订时间为30秒
+            int renewalIntervalInSecs = instanceInfo.getLeaseInfo().getRenewalIntervalInSecs();
+            int expBackOffBound = clientConfig.getHeartbeatExecutorExponentialBackOffBound();
+            logger.info("Starting heartbeat executor: " + "renew interval is: {}", renewalIntervalInSecs);
+
+            // 心跳计时器，因为每30秒需要发送一次心跳，来判断是否存活
+            scheduler.schedule(
+                    new TimedSupervisorTask(
+                            "heartbeat",
+                            scheduler,
+                            heartbeatExecutor,
+                            renewalIntervalInSecs,
+                            TimeUnit.SECONDS,
+                            expBackOffBound,
+                            new HeartbeatThread()
+                    ),
+                    renewalIntervalInSecs, TimeUnit.SECONDS);
+
+            // InstanceInfoReplicator 这个类主要将 实例好的eureka 客户端注册到eureka 服务起上，因为InstanceInfoReplicator 这个类已实现Runnable接口
+            instanceInfoReplicator = new InstanceInfoReplicator(
+                    this,
+                    instanceInfo,
+                    clientConfig.getInstanceInfoReplicationIntervalSeconds(),
+                    2); // burstSize
+
+            // 省略一些代码。
+            // 启动
+            instanceInfoReplicator.start(clientConfig.getInitialInstanceInfoReplicationIntervalSeconds());
+}
+
+// 启动
+ public void start(int initialDelayMs) {
+        if (started.compareAndSet(false, true)) {
+            instanceInfo.setIsDirty();  // for initial register
+            Future next = scheduler.schedule(this, initialDelayMs, TimeUnit.SECONDS);
+            scheduledPeriodicRef.set(next);
+        }
+    }
+public void run() {
+        try {
+            // 刷新eureka客户端实例化信息
+            discoveryClient.refreshInstanceInfo();
+
+            Long dirtyTimestamp = instanceInfo.isDirtyWithTime();
+            if (dirtyTimestamp != null) {
+                // 将客户端实例注册
+                discoveryClient.register();
+                instanceInfo.unsetIsDirty(dirtyTimestamp);
+            }
+        } catch (Throwable t) {
+            logger.warn("There was a problem with the instance info replicator", t);
+        } finally {
+            Future next = scheduler.schedule(this, replicationIntervalSeconds, TimeUnit.SECONDS);
+            scheduledPeriodicRef.set(next);
+        }
+}
+    /**
+     * 通过rest 向 eureka 服务器端注册
+     * Register with the eureka service by making the appropriate REST call.
+     */
+    boolean register() throws Throwable {
+        logger.info(PREFIX + "{}: registering service...", appPathIdentifier);
+        EurekaHttpResponse<Void> httpResponse;
+        try {
+            httpResponse = eurekaTransport.registrationClient.register(instanceInfo);
+        } catch (Exception e) {
+            logger.warn(PREFIX + "{} - registration failed {}", appPathIdentifier, e.getMessage(), e);
+            throw e;
+        }
+        if (logger.isInfoEnabled()) {
+            logger.info(PREFIX + "{} - registration status: {}", appPathIdentifier, httpResponse.getStatusCode());
+        }
+        return httpResponse.getStatusCode() == Status.NO_CONTENT.getStatusCode();
+    }
+
+// 将eureka注册到服务器端 ， 通过restTemplate
+public EurekaHttpResponse<Void> register(InstanceInfo info) {
+
+    String urlPath = serviceUrl + "apps/" + info.getAppName();
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.add(HttpHeaders.ACCEPT_ENCODING, "gzip");
+    headers.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+
+    ResponseEntity<Void> response = restTemplate.exchange(urlPath, HttpMethod.POST,
+            new HttpEntity<>(info, headers), Void.class);
+
+    return anEurekaHttpResponse(response.getStatusCodeValue())
+            .headers(headersOf(response)).build();
+}
